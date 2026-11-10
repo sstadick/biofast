@@ -63,3 +63,31 @@
 [fgbio]: http://fulcrumgenomics.github.io/fgbio/
 [commons.io]: https://javadoc.io/static/com.fulcrumgenomics/commons_2.12/1.0.0/com/fulcrumgenomics/commons/io/Io$.html#readLinesFromResource(name:String):Iterator[String]
 [ammnoite]: http://ammonite.io/
+
+## Goose
+
+These programs were measured on a different machine from the table above, a
+Ryzen 9 3950X running Ubuntu 24.04, so compare the rows here with one another
+and not with the rows above. The compilers were clang 18.1.3, Goose
+v2026.3-269-g74c641c5 and rustc 1.97.1.
+
+|Program | Language | Library | t<sub>plain</sub> (s) | M<sub>plain</sub> (Mb) | Comments |
+|:-------|:---------|:--------|----------------------:|-----------------------:|:---------|
+|[fqcnt\_rs2\_needletail.rs](fqcnt_rs2_needletail.rs)  |Rust |[needletail][nt]           | 0.44| 2.0|fasta/4-line fastq|
+|[fqcnt\_goose1\_fastx.goose](fqcnt_goose1_fastx.goose)|Goose|[goose-bio][goose-bio] fastx| 0.48| 1.8|kseq.h port; no gzip|
+|[fqcnt\_c1\_kseq.c](fqcnt_c1_kseq.c)                  |C    |[kseq.h](../lib/kseq.h)    | 0.52| 1.5|multi-line fasta/fastq|
+|[fqcnt\_rs1\_rustbio.rs](fqcnt_rs1_rustbio.rs)        |Rust |[rust-bio][rust-bio]       | 1.22| 2.0|rust-bio|
+
+* "t" is the median CPU time (user plus system) of five runs pinned to one
+  core. "M" is the peak resident set size reported by GNU time. All four
+  programs print the same bytes. [run\_bench.py](../run_bench.py) builds,
+  checks and times them: `./run_bench.py <data directory> --cc clang --cpu 6`.
+
+* Everything was built as the Makefiles build it, with `CC=clang`: `-O2` for
+  C and for the C that Goose generates, and `cargo install` for Rust.
+  Building for the native CPU (`run_bench.py --native`) changes no ranking.
+
+* goose-bio's fastx is a port of kseq.h and reads FASTA and multi-line FASTQ.
+  It reads uncompressed files only, so there is no gzip time.
+
+[goose-bio]: https://github.com/sstadick/goose-bio

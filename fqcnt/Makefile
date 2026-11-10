@@ -1,9 +1,12 @@
 CFLAGS=-g -Wall -O2
 LIBS=-lz
-PROG=fqcnt_c1_kseq fqcnt_nim1_klib fqcnt_go1 fqcnt_rs
+PROG=fqcnt_c1_kseq fqcnt_nim1_klib fqcnt_go1 fqcnt_rs fqcnt_goose1_fastx
 NIM=nim
 GO=go
 CARGO=cargo
+GOOSE=goose
+# Goose compiles to C. To pass the C compiler flags, name a script that adds them.
+GOOSE_CC=$(CC)
 AMM=amm
 MILL=mill
 PROJECT_ROOT := $(shell realpath ../)
@@ -20,6 +23,9 @@ fqcnt_nim1_klib:fqcnt_nim1_klib.nim ../lib/klib.nim
 
 fqcnt_go1:fqcnt_go1.go
 	$(GO) build $<
+
+fqcnt_goose1_fastx:fqcnt_goose1_fastx.goose
+	$(GOOSE) build $< --cc $(GOOSE_CC) -O2 -o $@
 
 .PHONY: fqcnt_rs
 fqcnt_rs:

@@ -78,6 +78,16 @@ quality. The input file is `M_abscessus_HiSeq.fq` in
 
 * For the full table and technical notes, see the [fqcnt directory](fqcnt).
 
+### Goose and rust-lapper
+
+This fork adds [Goose][goose] programs for both benchmarks, built on
+[goose-bio][goose-bio], and a Rust `bedcov` built on [rust-lapper][rust-lapper].
+They were measured against the C programs on a different machine from the
+tables above, so their results are in separate tables in the
+[bedcov](bedcov#goose-and-rust-lapper) and [fqcnt](fqcnt#goose) directories.
+`./run_bench.py <data directory>` builds the programs, checks their output
+against the C programs' and prints those tables.
+
 [dl]: https://github.com/lh3/biofast/releases/tag/biofast-data-v1
 [bp]: https://biopython.org/
 [fx.jl]: https://github.com/BioJulia/FASTX.jl
@@ -89,3 +99,6 @@ quality. The input file is `M_abscessus_HiSeq.fq` in
 [cppiitree]: https://github.com/lh3/cgranges/blob/master/cpp/IITree.h
 [hyperfine]: https://github.com/sharkdp/hyperfine
 [nt]: https://github.com/onecodex/needletail
+[goose]: https://github.com/aardappel/goose
+[goose-bio]: https://github.com/sstadick/goose-bio
+[rust-lapper]: https://github.com/sstadick/rust-lapper

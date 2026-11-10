@@ -17,3 +17,51 @@
 
 * For "g2r", sorting takes significant time. C uses a radix sort. Other
   languages rely on their standard libraries.
+
+## Goose and rust-lapper
+
+These programs were measured on a different machine from the table above, a
+Ryzen 9 3950X running Ubuntu 24.04, so compare them with the C row here and
+not with the rows above. The compilers were clang 18.1.3, Goose
+v2026.3-269-g74c641c5 and rustc 1.97.1.
+
+|Program | Language | Library | t<sub>g2r</sub> (s) | M<sub>g2r</sub> (Mb) | t<sub>r2g</sub> (s) | M<sub>r2g</sub> (Mb) |
+|:-------|:---------|:--------|--------------------:|---------------------:|--------------------:|---------------------:|
+|[bedcov\_goose2\_lapper.goose](bedcov_goose2_lapper.goose)|Goose|[goose-bio][goose-bio] lapper| 1.46| 178.8 | 2.39| 25.5 |
+|[bedcov\_goose1\_iitree.goose](bedcov_goose1_iitree.goose)|Goose|[goose-bio][goose-bio] iitree| 1.95| 138.5 | 3.44| 20.2 |
+|[bedcov\_rs1\_lapper.rs](bedcov_rs1_lapper.rs)            |Rust |[rust-lapper][rust-lapper]   | 2.38| 212.2 | 3.64| 29.9 |
+|[bedcov\_c1\_cgr.c](bedcov_c1_cgr.c)                      |C    |[cgranges.h](../lib/cgranges.h)| 3.08| 139.2 | 6.08| 20.2 |
+
+* "t" is the median CPU time (user plus system) of five runs pinned to one
+  core, with the output sent to `/dev/null`. "M" is the peak resident set
+  size reported by GNU time. All four programs print the same bytes.
+  [run\_bench.py](../run_bench.py) builds, checks and times them:
+  `./run_bench.py <data directory> --cc clang --cpu 6`.
+
+* Everything was built as the Makefiles build it, with `CC=clang`: `-O2` for
+  C and for the C that Goose generates, and `cargo install` for Rust.
+  Building for the native CPU (`run_bench.py --native`) changes no ranking;
+  its largest effect is on C r2g, 6.08 s to 5.72 s.
+
+* The iitree program is a port of the C. goose-bio's iitree is cgranges'
+  radix sort and implicit interval tree, with one difference: it calls a
+  block with each overlap, where `cr_overlap` fills an array of indices that
+  the caller reads the intervals back through.
+
+* The two lapper programs use a different index. A lapper holds the sorted
+  intervals of one contig with an index over blocks of them, so these
+  programs keep one lapper per contig and look the contig up themselves. The
+  index is the extra memory.
+
+* These are whole-program times, and much of the C's time is not spent in
+  cgranges. The Goose and Rust programs parse numbers with a digit loop and
+  format output into a 64 KiB buffer, where the C calls `atol` and `printf`.
+  [Measured in goose-bio][why] with clang, doing the same in the C took it
+  from 2.93 s to 2.38 s on g2r and from 5.59 s to 3.87 s on r2g.
+
+* The Goose and Rust programs read uncompressed files only and have no `-c`
+  or `-C` option.
+
+[goose-bio]: https://github.com/sstadick/goose-bio
+[rust-lapper]: https://github.com/sstadick/rust-lapper
+[why]: https://github.com/sstadick/goose-bio/blob/v0.2.0/bench/BIOFAST.md#why-goose-is-ahead-of-c-on-bedcov

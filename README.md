@@ -78,15 +78,37 @@ quality. The input file is `M_abscessus_HiSeq.fq` in
 
 * For the full table and technical notes, see the [fqcnt directory](fqcnt).
 
-### Goose and rust-lapper
+### Goose, Rust and Mojo
 
 This fork adds [Goose][goose] programs for both benchmarks, built on
 [goose-bio][goose-bio], and a Rust `bedcov` built on [rust-lapper][rust-lapper].
+It also adds Mojo versions using [Mojoverse][mojoverse]'s `mojo-lapper` and
+`mojo-io` packages: one lapper per BED contig, and a line-based FASTX parser.
 They were measured against the C programs on a different machine from the
 tables above, so their results are in separate tables in the
-[bedcov](bedcov#goose-and-rust-lapper) and [fqcnt](fqcnt#goose) directories.
+[bedcov](bedcov#goose-rust-and-mojo) and [fqcnt](fqcnt#goose-and-mojo) directories.
 `./run_bench.py <data directory>` builds the programs, checks their output
-against the C programs' and prints those tables.
+against the C programs' and prints those tables, with individual samples on stderr.
+
+Install [Pixi](https://pixi.prefix.dev/) for the Mojo builds. `pixi.toml` and
+`pixi.lock` pin Mojo 1.2.0 and immutable Mojoverse package revisions; no sibling
+checkouts or source include paths are required. These builds target Linux x86-64.
+The Makefiles use `-O3 --march native` for Mojo, `-O3 -march=native` for C and
+Goose's generated C, and `target-cpu=native` for Rust.
+
+```sh
+pixi install --locked
+make -C bedcov bedcov_mojo1_lapper
+make -C fqcnt fqcnt_mojo1_fastx
+pixi run --locked test-mojo
+./run_bench.py <data directory> --cc clang --cpu 6 --rounds 7
+```
+
+The tests check command-line output against C and independent expected results,
+including overlap unions, boundary contacts, empty inputs, multiline FASTQ,
+CRLF, long records and quality-length errors. The Mojo programs read uncompressed
+files only. The BED program requires UTF-8 contig names; neither new program adds
+options beyond the positional input paths.
 
 [dl]: https://github.com/lh3/biofast/releases/tag/biofast-data-v1
 [bp]: https://biopython.org/
@@ -102,3 +124,4 @@ against the C programs' and prints those tables.
 [goose]: https://github.com/aardappel/goose
 [goose-bio]: https://github.com/sstadick/goose-bio
 [rust-lapper]: https://github.com/sstadick/rust-lapper
+[mojoverse]: https://github.com/sstadick/mojoverse

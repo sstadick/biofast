@@ -1,6 +1,6 @@
 CFLAGS=-g -Wall -O3 -march=native
 LIBS=-lz
-PROG=fqcnt_c1_kseq fqcnt_nim1_klib fqcnt_go1 fqcnt_rs fqcnt_goose1_fastx
+PROG=fqcnt_c1_kseq fqcnt_nim1_klib fqcnt_go1 fqcnt_rs fqcnt_goose1_fastx fqcnt_mojo1_fastx
 NIM=nim
 GO=go
 CARGO=cargo
@@ -11,6 +11,8 @@ RUSTFLAGS=-C target-cpu=native
 AMM=amm
 MILL=mill
 PROJECT_ROOT := $(shell realpath ../)
+MOJO=pixi run --manifest-path $(PROJECT_ROOT)/pixi.toml --locked mojo
+MOJOFLAGS=-O3 --march native
 
 .PHONY:all clean
 
@@ -27,6 +29,9 @@ fqcnt_go1:fqcnt_go1.go
 
 fqcnt_goose1_fastx:fqcnt_goose1_fastx.goose ../lib/goose_cc.sh
 	CC=$(CC) $(GOOSE) build $< --cc $(GOOSE_CC) -O2 -o $@
+
+fqcnt_mojo1_fastx:fqcnt_mojo1_fastx.mojo ../pixi.toml ../pixi.lock
+	$(MOJO) build $(MOJOFLAGS) $(abspath $<) -o $(abspath $@)
 
 .PHONY: fqcnt_rs
 fqcnt_rs:

@@ -64,34 +64,45 @@
 [commons.io]: https://javadoc.io/static/com.fulcrumgenomics/commons_2.12/1.0.0/com/fulcrumgenomics/commons/io/Io$.html#readLinesFromResource(name:String):Iterator[String]
 [ammnoite]: http://ammonite.io/
 
-## Goose
+## Goose and Mojo
 
 These programs were measured on a different machine from the table above, a
 Ryzen 9 3950X running Ubuntu 24.04, so compare the rows here with one another
 and not with the rows above. The compilers were clang 18.1.3, Goose
-v2026.3-269-g74c641c5 and rustc 1.97.1.
+v2026.3-269-g74c641c5, rustc 1.97.1 and Mojo 1.2.0 (2016d0cd).
 
 |Program | Language | Library | t<sub>plain</sub> (s) | M<sub>plain</sub> (Mb) | Comments |
 |:-------|:---------|:--------|----------------------:|-----------------------:|:---------|
 |[fqcnt\_rs2\_needletail.rs](fqcnt_rs2_needletail.rs)  |Rust |[needletail][nt]           | 0.39| 2.0|fasta/4-line fastq|
 |[fqcnt\_goose1\_fastx.goose](fqcnt_goose1_fastx.goose)|Goose|[goose-bio][goose-bio] fastx| 0.46| 1.8|kseq.h port; no gzip|
+|[fqcnt\_mojo1\_fastx.mojo](fqcnt_mojo1_fastx.mojo)    |Mojo |[mojo-io][mojo-io]        | 0.47| 9.0|multi-line fasta/fastq; no gzip|
 |[fqcnt\_c1\_kseq.c](fqcnt_c1_kseq.c)                  |C    |[kseq.h](../lib/kseq.h)    | 0.51| 1.5|multi-line fasta/fastq|
-|[fqcnt\_rs1\_rustbio.rs](fqcnt_rs1_rustbio.rs)        |Rust |[rust-bio][rust-bio]       | 1.14| 2.0|rust-bio|
+|[fqcnt\_rs1\_rustbio.rs](fqcnt_rs1_rustbio.rs)        |Rust |[rust-bio][rust-bio]       | 1.16| 2.0|rust-bio|
 
 * "t" is the median CPU time (user plus system) of seven runs pinned to one
   core, with the output sent to `/dev/null`. "M" is the peak resident set
   size reported by GNU time, also the median of seven runs. Each timed run
-  uses a fresh copy of the executable. All four programs print the same bytes.
+  uses a fresh copy of the executable. All five programs print the same bytes
+  on the Biofast FASTQ dataset.
   [run\_bench.py](../run_bench.py) builds, checks and times them:
   `./run_bench.py <data directory> --cc clang --cpu 6 --rounds 7`.
 
 * Everything was built as the Makefiles build it, with `CC=clang`:
   `-O3 -march=native` for C and for the C that Goose generates, and
   `cargo install` with `RUSTFLAGS="-C target-cpu=native"` for Rust.
+  Mojo uses `-O3 --march native` with the compiler and Mojoverse dependencies
+  pinned by the root `pixi.toml` and `pixi.lock`.
   Goose's `-O2` selects its inlining level; `lib/goose_cc.sh` appends the
   native C flags after Goose's default C flags. Native builds are the default.
 
 * goose-bio's fastx is a port of kseq.h and reads FASTA and multi-line FASTQ.
   It reads uncompressed files only, so there is no gzip time.
 
+* Mojoverse has no FASTX package yet. The Mojo program implements a
+  line-based FASTA/multi-line FASTQ parser over [mojo-io][mojo-io], retaining
+  reusable header, sequence and quality buffers rather than just counting
+  line lengths. It checks quality lengths and reads uncompressed input only.
+  It is not a byte-for-byte port of kseq's malformed-input recovery rules.
+
 [goose-bio]: https://github.com/sstadick/goose-bio
+[mojo-io]: https://github.com/sstadick/mojo-io

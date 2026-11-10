@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Build the C, Goose, and Rust programs with the Makefiles and compare them.
+"""Build the C, Goose, Rust, and Mojo programs with the Makefiles and compare them.
 
 The flags are the Makefiles': -O3 -march=native for C and for the C that Goose
-generates, and target-cpu=native for Rust. Each program's output is first
-checked against the C program's. Then every program is run several times with
+generates, target-cpu=native for Rust, and -O3 --march native for Mojo.
+Each program's output is first checked against the C program's.
+Then every program is run several times with
 its output discarded, and the median CPU time (user plus system) and peak
 memory are printed as Markdown tables.
 """
@@ -64,6 +65,13 @@ BENCHMARKS = (
                 "bedcov_goose2_lapper",
             ),
             Program("bedcov_rs1_lapper.rs", "Rust", "rust-lapper", "bedcov_rs", "bin/bedcov_lapper"),
+            Program(
+                "bedcov_mojo1_lapper.mojo",
+                "Mojo",
+                "mojo-lapper",
+                "bedcov_mojo1_lapper",
+                "bedcov_mojo1_lapper",
+            ),
         ),
     ),
     Benchmark(
@@ -80,6 +88,13 @@ BENCHMARKS = (
             ),
             Program("fqcnt_rs1_rustbio.rs", "Rust", "rust-bio", "fqcnt_rs", "bin/fqcnt_rustbio"),
             Program("fqcnt_rs2_needletail.rs", "Rust", "needletail", "fqcnt_rs", "bin/fqcnt_needletail"),
+            Program(
+                "fqcnt_mojo1_fastx.mojo",
+                "Mojo",
+                "mojo-io",
+                "fqcnt_mojo1_fastx",
+                "fqcnt_mojo1_fastx",
+            ),
         ),
     ),
 )
@@ -205,7 +220,7 @@ def main() -> None:
     args = parser.parse_args()
     if args.rounds < 1:
         parser.error("--rounds must be positive")
-    for tool in [TIME, args.cc, "make", "goose", "cargo", *(["taskset"] if args.cpu is not None else [])]:
+    for tool in [TIME, args.cc, "make", "goose", "cargo", "pixi", *(["taskset"] if args.cpu is not None else [])]:
         if shutil.which(tool) is None:
             parser.error(f"{tool} not found")
     files = sorted({file for benchmark in BENCHMARKS for case in benchmark.cases.values() for file in case})
@@ -234,6 +249,10 @@ def main() -> None:
                         sample = measure(prefix, [str(copy), *files], scratch / "report")
                         copy.unlink()
                         samples.setdefault((program.source, case), []).append(sample)
+                        print(
+                            f"{program.source} {case}: {sample.cpu:.2f} s, {sample.peak:.3f} MiB",
+                            file=sys.stderr,
+                        )
 
     for benchmark in BENCHMARKS:
         report(benchmark, samples)

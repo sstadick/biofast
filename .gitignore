@@ -5,6 +5,9 @@
 
 .idea
 
+/.pixi/
+/bedcov/bedcov_mojo1_lapper
+/fqcnt/fqcnt_mojo1_fastx
 
 # Created by https://www.gitignore.io/api/rust
 # Edit at https://www.gitignore.io/?templates=rust

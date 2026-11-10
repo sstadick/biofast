@@ -73,19 +73,23 @@ v2026.3-269-g74c641c5 and rustc 1.97.1.
 
 |Program | Language | Library | t<sub>plain</sub> (s) | M<sub>plain</sub> (Mb) | Comments |
 |:-------|:---------|:--------|----------------------:|-----------------------:|:---------|
-|[fqcnt\_rs2\_needletail.rs](fqcnt_rs2_needletail.rs)  |Rust |[needletail][nt]           | 0.44| 2.0|fasta/4-line fastq|
-|[fqcnt\_goose1\_fastx.goose](fqcnt_goose1_fastx.goose)|Goose|[goose-bio][goose-bio] fastx| 0.48| 1.8|kseq.h port; no gzip|
-|[fqcnt\_c1\_kseq.c](fqcnt_c1_kseq.c)                  |C    |[kseq.h](../lib/kseq.h)    | 0.52| 1.5|multi-line fasta/fastq|
-|[fqcnt\_rs1\_rustbio.rs](fqcnt_rs1_rustbio.rs)        |Rust |[rust-bio][rust-bio]       | 1.22| 2.0|rust-bio|
+|[fqcnt\_rs2\_needletail.rs](fqcnt_rs2_needletail.rs)  |Rust |[needletail][nt]           | 0.39| 2.0|fasta/4-line fastq|
+|[fqcnt\_goose1\_fastx.goose](fqcnt_goose1_fastx.goose)|Goose|[goose-bio][goose-bio] fastx| 0.46| 1.8|kseq.h port; no gzip|
+|[fqcnt\_c1\_kseq.c](fqcnt_c1_kseq.c)                  |C    |[kseq.h](../lib/kseq.h)    | 0.51| 1.5|multi-line fasta/fastq|
+|[fqcnt\_rs1\_rustbio.rs](fqcnt_rs1_rustbio.rs)        |Rust |[rust-bio][rust-bio]       | 1.14| 2.0|rust-bio|
 
-* "t" is the median CPU time (user plus system) of five runs pinned to one
-  core. "M" is the peak resident set size reported by GNU time. All four
-  programs print the same bytes. [run\_bench.py](../run_bench.py) builds,
-  checks and times them: `./run_bench.py <data directory> --cc clang --cpu 6`.
+* "t" is the median CPU time (user plus system) of seven runs pinned to one
+  core, with the output sent to `/dev/null`. "M" is the peak resident set
+  size reported by GNU time, also the median of seven runs. Each timed run
+  uses a fresh copy of the executable. All four programs print the same bytes.
+  [run\_bench.py](../run_bench.py) builds, checks and times them:
+  `./run_bench.py <data directory> --cc clang --cpu 6 --rounds 7`.
 
-* Everything was built as the Makefiles build it, with `CC=clang`: `-O2` for
-  C and for the C that Goose generates, and `cargo install` for Rust.
-  Building for the native CPU (`run_bench.py --native`) changes no ranking.
+* Everything was built as the Makefiles build it, with `CC=clang`:
+  `-O3 -march=native` for C and for the C that Goose generates, and
+  `cargo install` with `RUSTFLAGS="-C target-cpu=native"` for Rust.
+  Goose's `-O2` selects its inlining level; `lib/goose_cc.sh` appends the
+  native C flags after Goose's default C flags. Native builds are the default.
 
 * goose-bio's fastx is a port of kseq.h and reads FASTA and multi-line FASTQ.
   It reads uncompressed files only, so there is no gzip time.

@@ -27,21 +27,23 @@ v2026.3-269-g74c641c5 and rustc 1.97.1.
 
 |Program | Language | Library | t<sub>g2r</sub> (s) | M<sub>g2r</sub> (Mb) | t<sub>r2g</sub> (s) | M<sub>r2g</sub> (Mb) |
 |:-------|:---------|:--------|--------------------:|---------------------:|--------------------:|---------------------:|
-|[bedcov\_goose2\_lapper.goose](bedcov_goose2_lapper.goose)|Goose|[goose-bio][goose-bio] lapper| 1.46| 178.8 | 2.39| 25.5 |
-|[bedcov\_goose1\_iitree.goose](bedcov_goose1_iitree.goose)|Goose|[goose-bio][goose-bio] iitree| 1.95| 138.5 | 3.44| 20.2 |
-|[bedcov\_rs1\_lapper.rs](bedcov_rs1_lapper.rs)            |Rust |[rust-lapper][rust-lapper]   | 2.38| 212.2 | 3.64| 29.9 |
-|[bedcov\_c1\_cgr.c](bedcov_c1_cgr.c)                      |C    |[cgranges.h](../lib/cgranges.h)| 3.08| 139.2 | 6.08| 20.2 |
+|[bedcov\_goose2\_lapper.goose](bedcov_goose2_lapper.goose)|Goose|[goose-bio][goose-bio] lapper| 1.44| 178.8 | 2.44| 25.5 |
+|[bedcov\_goose1\_iitree.goose](bedcov_goose1_iitree.goose)|Goose|[goose-bio][goose-bio] iitree| 1.95| 138.5 | 3.22| 20.2 |
+|[bedcov\_rs1\_lapper.rs](bedcov_rs1_lapper.rs)            |Rust |[rust-lapper][rust-lapper]   | 2.45| 212.2 | 3.58| 30.0 |
+|[bedcov\_c1\_cgr.c](bedcov_c1_cgr.c)                      |C    |[cgranges.h](../lib/cgranges.h)| 2.95| 139.2 | 5.60| 20.2 |
 
-* "t" is the median CPU time (user plus system) of five runs pinned to one
+* "t" is the median CPU time (user plus system) of seven runs pinned to one
   core, with the output sent to `/dev/null`. "M" is the peak resident set
-  size reported by GNU time. All four programs print the same bytes.
+  size reported by GNU time, also the median of seven runs. Each timed run
+  uses a fresh copy of the executable. All four programs print the same bytes.
   [run\_bench.py](../run_bench.py) builds, checks and times them:
-  `./run_bench.py <data directory> --cc clang --cpu 6`.
+  `./run_bench.py <data directory> --cc clang --cpu 6 --rounds 7`.
 
-* Everything was built as the Makefiles build it, with `CC=clang`: `-O2` for
-  C and for the C that Goose generates, and `cargo install` for Rust.
-  Building for the native CPU (`run_bench.py --native`) changes no ranking;
-  its largest effect is on C r2g, 6.08 s to 5.72 s.
+* Everything was built as the Makefiles build it, with `CC=clang`:
+  `-O3 -march=native` for C and for the C that Goose generates, and
+  `cargo install` with `RUSTFLAGS="-C target-cpu=native"` for Rust.
+  Goose's `-O2` selects its inlining level; `lib/goose_cc.sh` appends the
+  native C flags after Goose's default C flags. Native builds are the default.
 
 * The iitree program is a port of the C. goose-bio's iitree is cgranges'
   radix sort and implicit interval tree, with one difference: it calls a

@@ -1,12 +1,13 @@
-CFLAGS=-g -Wall -O2
+CFLAGS=-g -Wall -O3 -march=native
 LIBS=-lz
 PROG=fqcnt_c1_kseq fqcnt_nim1_klib fqcnt_go1 fqcnt_rs fqcnt_goose1_fastx
 NIM=nim
 GO=go
 CARGO=cargo
 GOOSE=goose
-# Goose compiles to C. To pass the C compiler flags, name a script that adds them.
-GOOSE_CC=$(CC)
+# Goose compiles to C, which this script builds with -O3 -march=native.
+GOOSE_CC=$(abspath ../lib/goose_cc.sh)
+RUSTFLAGS=-C target-cpu=native
 AMM=amm
 MILL=mill
 PROJECT_ROOT := $(shell realpath ../)
@@ -24,12 +25,12 @@ fqcnt_nim1_klib:fqcnt_nim1_klib.nim ../lib/klib.nim
 fqcnt_go1:fqcnt_go1.go
 	$(GO) build $<
 
-fqcnt_goose1_fastx:fqcnt_goose1_fastx.goose
-	$(GOOSE) build $< --cc $(GOOSE_CC) -O2 -o $@
+fqcnt_goose1_fastx:fqcnt_goose1_fastx.goose ../lib/goose_cc.sh
+	CC=$(CC) $(GOOSE) build $< --cc $(GOOSE_CC) -O2 -o $@
 
 .PHONY: fqcnt_rs
 fqcnt_rs:
-	$(CARGO) install --path $(PROJECT_ROOT) --force --bin fqcnt_rustbio --bin fqcnt_needletail --root .
+	RUSTFLAGS="$(RUSTFLAGS)" $(CARGO) install --path $(PROJECT_ROOT) --force --bin fqcnt_rustbio --bin fqcnt_needletail --root .
 
 .PHONY: rust
 rust: fqcnt_rs

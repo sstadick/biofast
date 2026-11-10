@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Build the C, Goose, and Rust programs with the Makefiles and compare them.
 
-Each program's output is first checked against the C program's. Then every
-program is run several times with its output discarded, and the median CPU
-time (user plus system) and peak memory are printed as Markdown tables.
+The flags are the Makefiles': -O3 -march=native for C and for the C that Goose
+generates, and target-cpu=native for Rust. Each program's output is first
+checked against the C program's. Then every program is run several times with
+its output discarded, and the median CPU time (user plus system) and peak
+memory are printed as Markdown tables.
 """
 
 import argparse
@@ -89,27 +91,18 @@ class Sample:
     peak: float  # Peak resident set size in MB.
 
 
-def run(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> None:
-    result = subprocess.run(command, cwd=cwd, env=env, text=True, capture_output=True, check=False)
+def run(command: list[str], cwd: Path) -> None:
+    result = subprocess.run(command, cwd=cwd, text=True, capture_output=True, check=False)
     if result.returncode != 0:
         sys.exit(f"{shlex.join(command)} failed:\n{result.stdout}{result.stderr}")
 
 
-def build(cc: str, native: bool, scratch: Path) -> None:
-    """Build every program, for this machine's CPU if native."""
-    variables = [f"CC={cc}"]
-    env = dict(os.environ)
-    if native:
-        # Goose runs the C compiler itself, so its flags go in a wrapper.
-        wrapper = scratch / "cc"
-        wrapper.write_text(f'#!/bin/sh\nexec {shlex.quote(cc)} "$@" -O3 -march=native\n')
-        wrapper.chmod(0o755)
-        variables += ["CFLAGS=-g -Wall -O3 -march=native", f"GOOSE_CC={wrapper}"]
-        env["RUSTFLAGS"] = "-C target-cpu=native"
+def build(cc: str) -> None:
+    """Build every program with the flags in the Makefiles."""
     for benchmark in BENCHMARKS:
         targets = list(dict.fromkeys(program.target for program in benchmark.programs))
         print(f"building {benchmark.directory}: {' '.join(targets)}", file=sys.stderr)
-        run(["make", "-B", *variables, *targets], ROOT / benchmark.directory, env)
+        run(["make", "-B", f"CC={cc}", *targets], ROOT / benchmark.directory)
 
 
 def command(benchmark: Benchmark, program: Program, case: str, data: Path) -> list[str]:
@@ -209,12 +202,6 @@ def main() -> None:
         default=os.environ.get("CC", "cc"),
         help="C compiler for the C programs and for Goose's C (default: $CC, or cc)",
     )
-    parser.add_argument(
-        "--native",
-        action="store_true",
-        help="build for this machine's CPU: -O3 -march=native for C and Goose's C, "
-        "target-cpu=native for Rust (default: what the Makefiles build)",
-    )
     args = parser.parse_args()
     if args.rounds < 1:
         parser.error("--rounds must be positive")
@@ -229,7 +216,7 @@ def main() -> None:
     samples: dict[tuple[str, str], list[Sample]] = {}
     with tempfile.TemporaryDirectory(prefix="biofast-bench-") as tmp:
         scratch = Path(tmp)
-        build(args.cc, args.native, scratch)
+        build(args.cc)
         check(args.data)
         prefix = [] if args.cpu is None else ["taskset", "-c", str(args.cpu)]
         # Interleave the programs so slow drift affects every program alike.
@@ -238,9 +225,14 @@ def main() -> None:
             for benchmark in BENCHMARKS:
                 for case in benchmark.cases:
                     for program in benchmark.programs:
-                        sample = measure(
-                            prefix, command(benchmark, program, case, args.data), scratch / "report"
-                        )
+                        # Byte-identical executables showed different timings
+                        # in local runs. Sample fresh copies for every program;
+                        # copying itself is outside the timed region.
+                        executable, *files = command(benchmark, program, case, args.data)
+                        copy = scratch / f"{Path(executable).name}-{round_number}"
+                        shutil.copy2(executable, copy)
+                        sample = measure(prefix, [str(copy), *files], scratch / "report")
+                        copy.unlink()
                         samples.setdefault((program.source, case), []).append(sample)
 
     for benchmark in BENCHMARKS:

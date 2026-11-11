@@ -7,7 +7,7 @@ requires-pixi = ">=0.80"
 
 [dependencies]
 mojo = "=1.2.0"
-mojo-lapper = { git = "https://github.com/sstadick/mojo-lapper", rev = "2d239a605ea0b89b90a1593644aea1fb565e10f0" }
+mojo-lapper = { git = "https://github.com/sstadick/mojo-lapper", rev = "9be7c04f6d8870590503a954032b43602c93d218" }
 mojo-io = { git = "https://github.com/sstadick/mojo-io", rev = "17b29ed7178b791673401407e9267b82ec50f4c5" }
 
 [tasks]

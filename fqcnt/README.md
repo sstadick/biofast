@@ -73,10 +73,10 @@ v2026.3-269-g74c641c5, rustc 1.97.1 and Mojo 1.2.0 (2016d0cd).
 
 |Program | Language | Library | t<sub>plain</sub> (s) | M<sub>plain</sub> (Mb) | Comments |
 |:-------|:---------|:--------|----------------------:|-----------------------:|:---------|
-|[fqcnt\_rs2\_needletail.rs](fqcnt_rs2_needletail.rs)  |Rust |[needletail][nt]           | 0.39| 2.0|fasta/4-line fastq|
-|[fqcnt\_goose1\_fastx.goose](fqcnt_goose1_fastx.goose)|Goose|[goose-bio][goose-bio] fastx| 0.46| 1.8|kseq.h port; no gzip|
+|[fqcnt\_rs2\_needletail.rs](fqcnt_rs2_needletail.rs)  |Rust |[needletail][nt]           | 0.40| 2.0|fasta/4-line fastq|
+|[fqcnt\_goose1\_fastx.goose](fqcnt_goose1_fastx.goose)|Goose|[goose-bio][goose-bio] fastx| 0.47| 1.8|kseq.h port; no gzip|
 |[fqcnt\_mojo1\_fastx.mojo](fqcnt_mojo1_fastx.mojo)    |Mojo |[mojo-io][mojo-io]        | 0.47| 9.0|multi-line fasta/fastq; no gzip|
-|[fqcnt\_c1\_kseq.c](fqcnt_c1_kseq.c)                  |C    |[kseq.h](../lib/kseq.h)    | 0.51| 1.5|multi-line fasta/fastq|
+|[fqcnt\_c1\_kseq.c](fqcnt_c1_kseq.c)                  |C    |[kseq.h](../lib/kseq.h)    | 0.52| 1.5|multi-line fasta/fastq|
 |[fqcnt\_rs1\_rustbio.rs](fqcnt_rs1_rustbio.rs)        |Rust |[rust-bio][rust-bio]       | 1.16| 2.0|rust-bio|
 
 * "t" is the median CPU time (user plus system) of seven runs pinned to one

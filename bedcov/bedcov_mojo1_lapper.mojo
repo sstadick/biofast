@@ -1,7 +1,6 @@
 """Uncompressed BED coverage using Mojoverse's mojo-lapper and mojo-io.
 
 Like the Goose/Rust programs, keep one index per contig and buffer output.
-mojo-lapper uses a maximum-interval-length bound, not their block-max index.
 """
 
 from std.sys import argv
@@ -9,9 +8,13 @@ from lapper.lapper import Interval, Lapper
 from mojo_io import BufferedReader, BufferedWriter
 
 
-def atoi(text: Span[UInt8, _]) -> Int32:
-    var i = 0
-    while i < len(text) and (text[i] == 32 or (text[i] >= 9 and text[i] <= 13)):
+@always_inline
+def atoi(text: Span[UInt8, _], mut offset: Int) -> Int32:
+    var i = offset
+    # Tabs delimit fields, including empty fields; never skip into the next one.
+    while i < len(text) and (
+        text[i] == 32 or (text[i] >= 10 and text[i] <= 13)
+    ):
         i += 1
     var negative = False
     if i < len(text) and (text[i] == 45 or text[i] == 43):
@@ -21,6 +24,7 @@ def atoi(text: Span[UInt8, _]) -> Int32:
     while i < len(text) and text[i] >= 48 and text[i] <= 57:
         value = value * 10 + Int64(text[i] - 48)
         i += 1
+    offset = i
     return Int32(-value if negative else value)
 
 
@@ -31,31 +35,54 @@ def coordinate(value: Int32) -> UInt32:
 
 @fieldwise_init
 struct Record(Copyable):
-    var contig: String
+    var contig_end: Int
     var start: Int32
     var stop: Int32
 
 
-def parse_bed(line: Span[UInt8, _]) raises -> Optional[Record]:
-    var first = -1
-    var second = -1
-    var third = len(line)
-    for i in range(len(line)):
-        if line[i] == 9:
-            if first < 0:
-                first = i
-            elif second < 0:
-                second = i
-            else:
-                third = i
-                break
-    if second < 0:
+@always_inline
+def parse_bed(line: Span[UInt8, _]) -> Optional[Record]:
+    var first = 0
+    while first < len(line) and line[first] != 9:
+        first += 1
+    var offset = first + 1
+    var start = atoi(line, offset)
+    # Usually atoi stops at the tab. Preserve atol's acceptance of suffixes
+    # without rescanning every start coordinate to find its delimiter first.
+    while offset < len(line) and line[offset] != 9:
+        offset += 1
+    if offset >= len(line):
         return None
-    return Record(
-        String(from_utf8=line[:first]),
-        atoi(line[first + 1 : second]),
-        atoi(line[second + 1 : third]),
-    )
+    offset += 1
+    var stop = atoi(line, offset)
+    return Record(first, start, stop)
+
+
+struct Contigs:
+    """Own contig keys and cache the last lookup, without retaining reader views.
+    """
+
+    var ids: Dict[String, Int]
+    var name: String
+    var id: Int
+
+    def __init__(out self):
+        self.ids = Dict[String, Int]()
+        self.name = String()
+        self.id = -2  # Distinguish an uninitialized cache from a missing key.
+
+    def resolve(
+        mut self, name: Span[UInt8, _], create: Bool = False
+    ) raises -> Int:
+        if self.id == -2 or name != self.name.as_bytes():
+            # Validate before retaining a new name. Equal bytes were already
+            # validated, so runs on the same contig need neither a copy nor hash.
+            self.name = String(from_utf8=name)
+            self.id = self.ids.get(self.name, -1)
+        if create and self.id < 0:
+            self.id = len(self.ids)
+            self.ids[self.name] = self.id
+        return self.id
 
 
 def main() raises:
@@ -64,7 +91,7 @@ def main() raises:
         print("Usage: bedcov <loaded.bed> <streamed.bed>")
         return
 
-    var ids = Dict[String, Int]()
+    var contigs = Contigs()
     var intervals = List[List[Interval]]()
     var loaded = BufferedReader(open(args[1], "r"), buffer_capacity=65536)
     while True:
@@ -75,12 +102,14 @@ def main() raises:
         if not parsed:
             continue
         var record = parsed.take()
+        var id = contigs.resolve(
+            line.value()[: record.contig_end], record.start <= record.stop
+        )
         if record.start > record.stop:
             continue
-        if record.contig not in ids:
-            ids[record.contig] = len(intervals)
+        if id == len(intervals):
             intervals.append(List[Interval]())
-        intervals[ids[record.contig]].append(
+        intervals[id].append(
             Interval(coordinate(record.start), coordinate(record.stop), 0)
         )
     loaded.close()
@@ -91,6 +120,7 @@ def main() raises:
         lappers.append(index^)
 
     var results = List[Interval]()
+    var text = String(capacity_bytes=65536)
     var queries = BufferedReader(open(args[2], "r"), buffer_capacity=65536)
     var output = BufferedWriter(open("/dev/stdout", "w"), buffer_capacity=65536)
     while True:
@@ -102,8 +132,9 @@ def main() raises:
             continue
         var record = parsed.take()
         results.clear()
-        if record.contig in ids:
-            lappers[ids[record.contig]].find(
+        var id = contigs.resolve(line.value()[: record.contig_end])
+        if id >= 0:
+            lappers[id].find(
                 coordinate(record.start), coordinate(record.stop), results
             )
         var coverage = 0
@@ -123,19 +154,21 @@ def main() raises:
             elif stop > covered_end:
                 covered_end = stop
         coverage += covered_end - covered_start
-        output.write_string(
-            String(
-                record.contig,
-                "\t",
-                record.start,
-                "\t",
-                record.stop,
-                "\t",
-                len(results),
-                "\t",
-                coverage,
-                "\n",
-            )
-        )
+        # Write each number once into a reusable batch, rather than sizing and
+        # allocating a new variadic String for every record.
+        contigs.name.write_to(text)
+        text.write_string("\t")
+        record.start.write_to(text)
+        text.write_string("\t")
+        record.stop.write_to(text)
+        text.write_string("\t")
+        len(results).write_to(text)
+        text.write_string("\t")
+        coverage.write_to(text)
+        text.write_string("\n")
+        if text.byte_length() >= 65536:
+            output.write_string(text)
+            text.resize(0)
+    output.write_string(text)
     queries.close()
     output.close()

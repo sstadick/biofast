@@ -27,11 +27,11 @@ v2026.3-269-g74c641c5, rustc 1.97.1 and Mojo 1.2.0 (2016d0cd).
 
 |Program | Language | Library | t<sub>g2r</sub> (s) | M<sub>g2r</sub> (Mb) | t<sub>r2g</sub> (s) | M<sub>r2g</sub> (Mb) |
 |:-------|:---------|:--------|--------------------:|---------------------:|--------------------:|---------------------:|
-|[bedcov\_goose2\_lapper.goose](bedcov_goose2_lapper.goose)|Goose|[goose-bio][goose-bio] lapper| 1.44| 178.8 | 2.46| 25.5 |
-|[bedcov\_goose1\_iitree.goose](bedcov_goose1_iitree.goose)|Goose|[goose-bio][goose-bio] iitree| 1.95| 138.2 | 3.24| 20.2 |
-|[bedcov\_rs1\_lapper.rs](bedcov_rs1_lapper.rs)            |Rust |[rust-lapper][rust-lapper]   | 2.48| 212.0 | 3.63| 30.0 |
-|[bedcov\_c1\_cgr.c](bedcov_c1_cgr.c)                      |C    |[cgranges.h](../lib/cgranges.h)| 2.96| 139.2 | 5.66| 20.2 |
-|[bedcov\_mojo1\_lapper.mojo](bedcov_mojo1_lapper.mojo)    |Mojo |[mojo-lapper][mojo-lapper]   | 6.68| 184.1 | 6.06| 33.5 |
+|[bedcov\_goose2\_lapper.goose](bedcov_goose2_lapper.goose)|Goose|[goose-bio][goose-bio] lapper| 1.46| 178.8 | 2.50| 25.5 |
+|[bedcov\_goose1\_iitree.goose](bedcov_goose1_iitree.goose)|Goose|[goose-bio][goose-bio] iitree| 1.98| 138.5 | 3.29| 20.2 |
+|[bedcov\_rs1\_lapper.rs](bedcov_rs1_lapper.rs)            |Rust |[rust-lapper][rust-lapper]   | 2.49| 212.1 | 3.68| 30.0 |
+|[bedcov\_c1\_cgr.c](bedcov_c1_cgr.c)                      |C    |[cgranges.h](../lib/cgranges.h)| 2.98| 139.2 | 5.70| 20.2 |
+|[bedcov\_mojo1\_lapper.mojo](bedcov_mojo1_lapper.mojo)    |Mojo |[mojo-lapper][mojo-lapper]   | 3.04| 186.5 | 4.87| 34.0 |
 
 * "t" is the median CPU time (user plus system) of seven runs pinned to one
   core, with the output sent to `/dev/null`. "M" is the peak resident set
@@ -60,11 +60,16 @@ v2026.3-269-g74c641c5, rustc 1.97.1 and Mojo 1.2.0 (2016d0cd).
   index is the extra memory.
 
 * The Mojo program uses [mojo-lapper][mojo-lapper] with one index per contig
-  and [mojo-io][mojo-io] for buffered input/output. This version of mojo-lapper
-  uses comparison sorting and a maximum-interval-length search bound, not
-  the Goose/Rust block-max index. Its `find` appends overlaps to a reusable
-  list. These are different implementations, not a controlled language-only
-  comparison. Mojo BED contig names must be valid UTF-8.
+  and [mojo-io][mojo-io] for buffered input/output. Its owning CPU indexes now
+  use rust-lapper 2.0.1's 32-interval block-max query algorithm, including
+  prefix maxima, tree skipping and SIMD overlap masks. Construction still
+  uses comparison sorting, and `find` appends overlaps to a reusable list.
+  The program caches consecutive contig lookups and reuses a 64 KiB text
+  buffer for output. Mojo BED contig names must be valid UTF-8.
+  These are different implementations, not a controlled language-only
+  comparison. The library's synthetic dense-query fixture is about 9%
+  slower than its previous scanner despite the whole-program improvement;
+  see [mojo-lapper's measurements][mojo-lapper].
 
 * These are whole-program times, and much of the C's time is not spent in
   cgranges. The Goose and Rust programs parse numbers with a digit loop and

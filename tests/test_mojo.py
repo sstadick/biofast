@@ -61,6 +61,50 @@ class MojoPrograms(unittest.TestCase):
         name = "chr-é".encode() * 12000
         self.bedcov(name + b"\t1\t9\n", name + b"\t4\t11", name + b"\t4\t11\t1\t5\n")
 
+    def test_bed_contig_switching_and_output_batches(self):
+        # Empty names, repeated missing names, revisited names and invalid
+        # intervals must not leave a stale cached ID or create an empty index.
+        names = [b"missing", b"missing2", b"chr1", b"", "chr-é".encode(), b"chr2"]
+        intervals = [(b"", 1, 4), (b"chr1", 1, 5), (b"chr2", 7, 9),
+                     (b"chr1", 8, 10), ("chr-é".encode(), 3, 11)]
+        loaded = b"chr1\t90\t2\n" + b"".join(
+            name + f"\t{s}\t{e}\n".encode() for name, s, e in intervals
+        ) + b"missing\t9\t3\n"
+        queries, expected = [], []
+        for i in range(6000):
+            name = names[(i // 3) % len(names)]
+            start, stop = i % 11, i % 11 + 5
+            hits = [(s, e) for contig, s, e in intervals
+                    if contig == name and s < stop and e > start]
+            covered = {x for s, e in hits for x in range(max(s, start), min(e, stop))}
+            prefix = name + f"\t{start}\t{stop}".encode()
+            queries.append(prefix + b"\n")
+            expected.append(prefix + f"\t{len(hits)}\t{len(covered)}\n".encode())
+        self.bedcov(loaded, b"".join(queries), b"".join(expected))
+        self.bedcov(
+            loaded,
+            b"chr1\t\t5\t999\nmissing\t1\t\t123\n"
+            b"chr1\t +2tail\t5suffix\textra\nmissing\t-2147483648\t2147483647",
+            b"chr1\t0\t5\t1\t4\nmissing\t1\t0\t0\t0\n"
+            b"chr1\t2\t5\t1\t3\nmissing\t-2147483648\t2147483647\t0\t0\n",
+        )
+
+    def test_bed_rejects_invalid_utf8_contigs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            loaded, queries = Path(tmp) / "loaded", Path(tmp) / "queries"
+            for bad in [b"chr\xff", b"chr\xc3"]:
+                for invalid_input in [loaded, queries]:
+                    loaded.write_bytes(b"chr1\t1\t9\n")
+                    queries.write_bytes(b"chr1\t2\t3\n")
+                    # Validate names even on intervals that would be discarded.
+                    with invalid_input.open("ab") as out:
+                        out.write(bad + b"\t9\t3\n")
+                    result = subprocess.run(
+                        [str(ROOT / "bedcov/bedcov_mojo1_lapper"), str(loaded), str(queries)],
+                        capture_output=True,
+                    )
+                    self.assertNotEqual(result.returncode, 0)
+
     def test_bed_union_against_brute_force(self):
         rng = random.Random(71)
         intervals = [(rng.randrange(150), rng.randrange(150, 350)) for _ in range(30)]

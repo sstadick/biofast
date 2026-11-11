@@ -1,0 +1,14 @@
+[workspace]
+name = "biofast"
+channels = ["https://conda.modular.com/max", "https://repo.prefix.dev/modular-community", "conda-forge"]
+platforms = ["linux-64"]
+preview = ["pixi-build"]
+requires-pixi = ">=0.80"
+
+[dependencies]
+mojo = "=1.2.0"
+mojo-lapper = { git = "https://github.com/sstadick/mojo-lapper", rev = "1a2ba808c28e4ac03d127b901e308f39582ce5b0" }
+mojo-io = { git = "https://github.com/sstadick/mojo-io", rev = "17b29ed7178b791673401407e9267b82ec50f4c5" }
+
+[tasks]
+test-mojo = "python3 tests/test_mojo.py"

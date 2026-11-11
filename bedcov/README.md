@@ -17,3 +17,83 @@
 
 * For "g2r", sorting takes significant time. C uses a radix sort. Other
   languages rely on their standard libraries.
+
+## Goose, Rust and Mojo
+
+These programs were measured on a different machine from the table above, a
+Ryzen 9 3950X running Ubuntu 24.04, so compare them with the C row here and
+not with the rows above. The compilers were clang 18.1.3, Goose
+v2026.3-269-g74c641c5, rustc 1.97.1 and Mojo 1.2.0 (2016d0cd).
+
+|Program | Language | Library | t<sub>g2r</sub> (s) | M<sub>g2r</sub> (Mb) | t<sub>r2g</sub> (s) | M<sub>r2g</sub> (Mb) |
+|:-------|:---------|:--------|--------------------:|---------------------:|--------------------:|---------------------:|
+|[bedcov\_goose2\_lapper.goose](bedcov_goose2_lapper.goose)|Goose|[goose-bio][goose-bio] lapper| 1.43| 178.8 | 2.47| 25.5 |
+|[bedcov\_goose1\_iitree.goose](bedcov_goose1_iitree.goose)|Goose|[goose-bio][goose-bio] iitree| 1.95| 138.5 | 3.26| 20.2 |
+|[bedcov\_rs1\_lapper.rs](bedcov_rs1_lapper.rs)            |Rust |[rust-lapper][rust-lapper]   | 2.46| 212.1 | 3.64| 30.0 |
+|[bedcov\_c1\_cgr.c](bedcov_c1_cgr.c)                      |C    |[cgranges.h](../lib/cgranges.h)| 2.94| 139.2 | 5.67| 20.2 |
+|[bedcov\_mojo1\_lapper.mojo](bedcov_mojo1_lapper.mojo)    |Mojo |[mojo-lapper][mojo-lapper]   | 2.72| 184.8 | 3.91| 34.2 |
+
+* "t" is the median CPU time (user plus system) of seven runs pinned to one
+  core, with the output sent to `/dev/null`. "M" is the peak resident set
+  size reported by GNU time, also the median of seven runs. Each timed run
+  uses a fresh copy of the executable. All five programs print the same bytes
+  on both Biofast BED datasets.
+  [run\_bench.py](../run_bench.py) builds, checks and times them:
+  `./run_bench.py <data directory> --cc clang --cpu 6 --rounds 7`.
+
+* Everything was built as the Makefiles build it, with `CC=clang`:
+  `-O3 -march=native` for C and for the C that Goose generates, and
+  `cargo install` with `RUSTFLAGS="-C target-cpu=native"` for Rust.
+  Mojo uses `-O3 --march native` with the compiler and Mojoverse dependencies
+  pinned by the root `pixi.toml` and `pixi.lock`.
+  Goose's `-O2` selects its inlining level; `lib/goose_cc.sh` appends the
+  native C flags after Goose's default C flags. Native builds are the default.
+
+* The iitree program is a port of the C. goose-bio's iitree is cgranges'
+  radix sort and implicit interval tree, with one difference: it calls a
+  block with each overlap, where `cr_overlap` fills an array of indices that
+  the caller reads the intervals back through.
+
+* The Goose and Rust lapper programs use a different index. A lapper holds
+  the sorted intervals of one contig with an index over blocks of them, so these
+  programs keep one lapper per contig and look the contig up themselves. The
+  index is the extra memory.
+
+* The Mojo program uses [mojo-lapper][mojo-lapper] with one index per contig
+  and [mojo-io][mojo-io] for buffered input/output. Its owning CPU indexes now
+  use rust-lapper 2.0.1's 32-interval block-max query algorithm, including
+  prefix maxima, tree skipping and SIMD overlap masks. Construction still
+  uses comparison sorting. The final Mojo program uses `visit` to update
+  coverage as each ordered match arrives, without an intermediate result
+  list. The library's existing `find` API remains available for callers that
+  need collected matches. The program caches consecutive contig lookups and
+  reuses a 64 KiB text buffer for output. Mojo BED names must be valid UTF-8.
+  These are different implementations, not a controlled language-only
+  comparison. The library's collecting synthetic dense-query fixture is about 9%
+  slower than its previous scanner despite the whole-program improvement;
+  see [mojo-lapper's measurements][mojo-lapper].
+
+* Materializing matches means writing each matching interval into a result
+  list, then reading that list to calculate coverage. Reusing the list avoids
+  repeated allocation, but not its per-match writes, append bookkeeping and
+  second pass. Streaming avoids those operations and lets the compiler inline
+  coverage into the traversal. In a seven-run controlled prototype comparison,
+  collecting took 3.05/4.97 s (g2r/r2g), streaming took 2.77/4.10 s, and a
+  visitor that still collected a list took 3.00/4.86 s. All full outputs matched
+  C. This isolates a substantial benefit from consuming matches immediately,
+  but does not eliminate the remaining difference from Rust.
+
+* These are whole-program times, and much of the C's time is not spent in
+  cgranges. The Goose and Rust programs parse numbers with a digit loop and
+  format output into a 64 KiB buffer, where the C calls `atol` and `printf`.
+  [Measured in goose-bio][why] with clang, doing the same in the C took it
+  from 2.93 s to 2.38 s on g2r and from 5.59 s to 3.87 s on r2g.
+
+* The Goose, Rust and Mojo programs read uncompressed files only and have
+  no `-c` or `-C` option.
+
+[goose-bio]: https://github.com/sstadick/goose-bio
+[rust-lapper]: https://github.com/sstadick/rust-lapper
+[mojo-lapper]: https://github.com/sstadick/mojo-lapper
+[mojo-io]: https://github.com/sstadick/mojo-io
+[why]: https://github.com/sstadick/goose-bio/blob/v0.2.0/bench/BIOFAST.md#why-goose-is-ahead-of-c-on-bedcov

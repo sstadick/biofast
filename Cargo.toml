@@ -8,6 +8,7 @@ edition = "2018"
 flate2 = "1.0.14"
 bio = "0.31.0"
 needletail = "0.4"
+rust-lapper = "2.0.1"
 
 [[bin]]
 name = "fqcnt_rustbio"
@@ -16,3 +17,7 @@ path = "fqcnt/fqcnt_rs1_rustbio.rs"
 [[bin]]
 name = "fqcnt_needletail"
 path = "fqcnt/fqcnt_rs2_needletail.rs"
+
+[[bin]]
+name = "bedcov_lapper"
+path = "bedcov/bedcov_rs1_lapper.rs"

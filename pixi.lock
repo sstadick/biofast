@@ -67,7 +67,7 @@ environments:
       - conda: https://conda.modular.com/max/noarch/mojo-python-1.2.0-release.conda
       - conda_source: mojo-bstr[5b5cac38] @ git+https://github.com/sstadick/mojo-bstr?rev=8baa38cfa9fc1f2e5519aaa626094c156124c703#8baa38cfa9fc1f2e5519aaa626094c156124c703
       - conda_source: mojo-io[2f3cb407] @ git+https://github.com/sstadick/mojo-io?rev=17b29ed7178b791673401407e9267b82ec50f4c5#17b29ed7178b791673401407e9267b82ec50f4c5
-      - conda_source: mojo-lapper[0d9b003b] @ git+https://github.com/sstadick/mojo-lapper?rev=9be7c04f6d8870590503a954032b43602c93d218#9be7c04f6d8870590503a954032b43602c93d218
+      - conda_source: mojo-lapper[3e418260] @ git+https://github.com/sstadick/mojo-lapper?rev=1a2ba808c28e4ac03d127b901e308f39582ce5b0#1a2ba808c28e4ac03d127b901e308f39582ce5b0
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
   build_number: 20
@@ -855,7 +855,7 @@ packages:
   - conda: https://conda.modular.com/max/linux-64/mojo-compiler-1.2.0-release.conda
   - conda: https://conda.modular.com/max/noarch/mojo-python-1.2.0-release.conda
   - conda_source: mojo-bstr[5b5cac38] @ git+https://github.com/sstadick/mojo-bstr?rev=8baa38cfa9fc1f2e5519aaa626094c156124c703#8baa38cfa9fc1f2e5519aaa626094c156124c703
-- conda_source: mojo-lapper[0d9b003b] @ git+https://github.com/sstadick/mojo-lapper?rev=9be7c04f6d8870590503a954032b43602c93d218#9be7c04f6d8870590503a954032b43602c93d218
+- conda_source: mojo-lapper[3e418260] @ git+https://github.com/sstadick/mojo-lapper?rev=1a2ba808c28e4ac03d127b901e308f39582ce5b0#1a2ba808c28e4ac03d127b901e308f39582ce5b0
   version: 0.1.0
   build: hb0f4dca_0
   subdir: linux-64

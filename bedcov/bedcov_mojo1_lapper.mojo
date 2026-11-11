@@ -4,8 +4,32 @@ Like the Goose/Rust programs, keep one index per contig and buffer output.
 """
 
 from std.sys import argv
-from lapper.lapper import Interval, Lapper
+from lapper.lapper import Interval, IntervalVisitor, Lapper
 from mojo_io import BufferedReader, BufferedWriter
+
+
+@fieldwise_init
+struct Coverage(IntervalVisitor):
+    """Accumulate ordered overlaps without storing and rereading each match."""
+
+    var query_start: Int32
+    var query_stop: Int32
+    var count: Int
+    var coverage: Int
+    var covered_start: Int
+    var covered_end: Int
+
+    @always_inline
+    def visit(mut self, interval: Interval):
+        var start = max(Int(Int32(interval.start ^ 0x80000000)), Int(self.query_start))
+        var stop = min(Int(Int32(interval.stop ^ 0x80000000)), Int(self.query_stop))
+        if start > self.covered_end:
+            self.coverage += self.covered_end - self.covered_start
+            self.covered_start = start
+            self.covered_end = stop
+        elif stop > self.covered_end:
+            self.covered_end = stop
+        self.count += 1
 
 
 @always_inline
@@ -119,7 +143,6 @@ def main() raises:
         var index = Lapper(intervals.pop(0))
         lappers.append(index^)
 
-    var results = List[Interval]()
     var text = String(capacity_bytes=65536)
     var queries = BufferedReader(open(args[2], "r"), buffer_capacity=65536)
     var output = BufferedWriter(open("/dev/stdout", "w"), buffer_capacity=65536)
@@ -131,29 +154,13 @@ def main() raises:
         if not parsed:
             continue
         var record = parsed.take()
-        results.clear()
+        var accumulator = Coverage(record.start, record.stop, 0, 0, 0, 0)
         var id = contigs.resolve(line.value()[: record.contig_end])
         if id >= 0:
-            lappers[id].find(
-                coordinate(record.start), coordinate(record.stop), results
+            lappers[id].visit(
+                coordinate(record.start), coordinate(record.stop), accumulator
             )
-        var coverage = 0
-        var covered_start = 0
-        var covered_end = 0
-        for interval in results:
-            var start = max(
-                Int(Int32(interval.start ^ 0x80000000)), Int(record.start)
-            )
-            var stop = min(
-                Int(Int32(interval.stop ^ 0x80000000)), Int(record.stop)
-            )
-            if start > covered_end:
-                coverage += covered_end - covered_start
-                covered_start = start
-                covered_end = stop
-            elif stop > covered_end:
-                covered_end = stop
-        coverage += covered_end - covered_start
+        var coverage = accumulator.coverage + accumulator.covered_end - accumulator.covered_start
         # Write each number once into a reusable batch, rather than sizing and
         # allocating a new variadic String for every record.
         contigs.name.write_to(text)
@@ -162,7 +169,7 @@ def main() raises:
         text.write_string("\t")
         record.stop.write_to(text)
         text.write_string("\t")
-        len(results).write_to(text)
+        accumulator.count.write_to(text)
         text.write_string("\t")
         coverage.write_to(text)
         text.write_string("\n")
